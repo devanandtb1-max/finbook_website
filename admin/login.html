@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finbook Admin Login</title>
+  <link href="https://db.onlinewebfonts.com/c/5ac3fe7c6abd2f62067f266d89671492?family=HelveticaNowDisplay-Medium" rel="stylesheet"><link href="https://db.onlinewebfonts.com/c/1aa3377e489837a26d019bba501e779d?family=HelveticaNowDisplayW01-Rg" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="assets/admin-ui.css"><link rel="stylesheet" href="admin.css"><script defer src="assets/admin-ui.js"></script>
+</head>
+<body data-page="login" data-view="home"><div id="admin-root"></div>
+
+  <div class="login-container">
+    <div class="brand">
+      <h1>Welcome back.</h1>
+      <p>Sign in to your admin workspace.</p>
+    </div>
+
+    <form id="loginForm">
+      <div class="input-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" required autocomplete="username" placeholder="admin@finbook.com">
+      </div>
+      
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <span id="btnText">Sign In</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+  </div>
+
+  <script>
+    // Configuration
+    const SUPABASE_URL = 'https://nuiflptifdkexotxnxcp.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_GfhZQfgUfhaiszDCu5JBZw_2c5zcNoG';
+    
+    // Initialize Supabase
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById('loginForm');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+    const errorMsg = document.getElementById('errorMsg');
+
+    // Check if already logged in
+    async function checkSession() {
+      const { data } = await sbClient.auth.getSession();
+      if (data.session) {
+        const { data: allowed, error } = await sbClient.rpc('is_admin');
+        if (error || allowed !== true) {
+          await sbClient.auth.signOut();
+          errorMsg.textContent = 'This account does not have administrator access.';
+          return;
+        }
+        window.location.href = 'dashboard.html';
+      }
+    }
+    checkSession();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // UI Loading state
+      btnText.style.display = 'none';
+      spinner.style.display = 'block';
+      submitBtn.disabled = true;
+      errorMsg.textContent = '';
+
+      const email = emailInput.value;
+      const password = passwordInput.value;
+
+      try {
+        const { data, error } = await sbClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        const { data: allowed, error: roleError } = await sbClient.rpc('is_admin');
+        if (roleError || allowed !== true) {
+          await sbClient.auth.signOut();
+          throw new Error('This account does not have administrator access.');
+        }
+        window.location.href = 'dashboard.html';
+
+      } catch (err) {
+        errorMsg.textContent = err.message;
+        btnText.style.display = 'block';
+        spinner.style.display = 'none';
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

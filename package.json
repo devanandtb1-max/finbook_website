@@ -1,0 +1,21 @@
+{
+  "dependencies": {
+    "jsdom": "^29.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3"
+  },
+  "scripts": {
+    "build:admin": "tsc -p admin-ui/tsconfig.json && vite build --config admin-ui/vite.config.ts",
+    "test": "node tests/regression.mjs",
+    "test:admin": "node tests/admin-ui.mjs"
+  }
+}

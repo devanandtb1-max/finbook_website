@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finbook Admin Dashboard</title>
+  <link href="https://db.onlinewebfonts.com/c/5ac3fe7c6abd2f62067f266d89671492?family=HelveticaNowDisplay-Medium" rel="stylesheet"><link href="https://db.onlinewebfonts.com/c/1aa3377e489837a26d019bba501e779d?family=HelveticaNowDisplayW01-Rg" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="assets/admin-ui.css"><link rel="stylesheet" href="admin.css"><script defer src="assets/admin-ui.js"></script>
+</head>
+<body data-page="dashboard" data-view="home"><div id="admin-root" hidden></div>
+  <p id="access-status" role="status">Checking administrator access…</p>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" style="display:none">
+    <div class="brand">Finbook Admin</div>
+    <button class="nav-btn active" onclick="switchTab('quotations', this)">Quotations & Leads</button>
+    <button class="nav-btn" onclick="switchTab('pricing', this)">Pricing & Fees</button>
+    <button class="logout-btn" onclick="logout()">Sign Out</button>
+  </aside>
+
+  <!-- Main Area -->
+  <main class="main-content" style="display:none">
+    
+    <!-- Quotations Section -->
+    <section id="quotations" class="section">
+      <div class="header-flex">
+        <h2 tabindex="-1">Quotations & Leads</h2>
+        <button class="btn-save" style="width:auto;" onclick="fetchQuotations()">Refresh Data</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Quote #</th>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>WhatsApp Handoff</th>
+            </tr>
+          </thead>
+          <tbody id="quotationsBody">
+            <tr><td colspan="7" style="text-align:center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="section">
+      <div class="header-flex">
+        <h2 tabindex="-1">Pricing & Fees Configuration</h2>
+      </div>
+      
+      <h3 style="margin: 24px 0 16px; font-weight:500; color:var(--primary);">Base Plans</h3>
+      <div class="card-grid" id="plansGrid">Loading...</div>
+      
+      <h3 style="margin: 32px 0 16px; font-weight:500; color:var(--primary);">Government & Professional Fees</h3>
+      <div class="card-grid" id="feesGrid">Loading...</div>
+      
+    </section>
+  </main>
+
+  <div id="toast" class="toast">Saved successfully!</div>
+
+  <script>
+    const SUPABASE_URL = 'https://nuiflptifdkexotxnxcp.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_GfhZQfgUfhaiszDCu5JBZw_2c5zcNoG';
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    let session = null;
+
+    async function init() {
+      const { data } = await sbClient.auth.getSession();
+      if (!data.session) {
+        window.location.href = 'login.html';
+        return;
+      }
+      const { data: allowed, error: roleError } = await sbClient.rpc('is_admin');
+      if (roleError || allowed !== true) {
+        await sbClient.auth.signOut();
+        document.getElementById('access-status').textContent = 'Administrator access could not be verified. Please sign in with an administrator account.';
+        return;
+      }
+      document.getElementById('access-status').hidden = true;
+      document.querySelector('.sidebar').style.display = '';
+      document.querySelector('.main-content').style.display = '';
+      session = data.session;
+      document.getElementById('admin-root').dataset.email = data.session.user?.email || '';
+      document.getElementById('admin-root').hidden = false;
+      document.dispatchEvent(new Event('admin-ready'));
+      
+      // Load initial data
+      fetchQuotations();
+      fetchPricing();
+    }
+    
+    init().catch(() => { document.getElementById('access-status').textContent = 'Unable to verify access. Please reload and try again.'; });
+
+    document.addEventListener('admin-navigate', event => {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      if (event.detail !== 'home') document.getElementById(event.detail)?.classList.add('active');
+    });
+    document.addEventListener('admin-logout', () => logout());
+    // Tab Switching
+    function switchTab(id, btn) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn?.classList.add('active');
+    }
+
+    async function logout() {
+      await sbClient.auth.signOut();
+      window.location.href = 'login.html';
+    }
+
+    function showToast(msg, isError=false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast show ' + (isError ? 'error' : '');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // -- QUOTATIONS LOGIC --
+    async function fetchQuotations() {
+      const tbody = document.getElementById('quotationsBody');
+      const { data, error } = await sbClient
+        .from('quotations')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        tbody.innerHTML = `<tr><td colspan="7" style="color:var(--danger)">Error loading data</td></tr>`;
+        return;
+      }
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No quotations found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(q => `
+        <tr>
+          <td>${new Date(q.created_at).toLocaleDateString()}</td>
+          <td><b>${escapeHtml(q.quote_number)}</b></td>
+          <td>${escapeHtml(q.customer_name)}</td>
+          <td>${escapeHtml(q.phone)}</td>
+          <td>₹${Number(q.total).toLocaleString('en-IN')}</td>
+          <td><span class="badge ${q.status === 'accepted' ? 'success' : 'pending'}">${escapeHtml(q.status.toUpperCase())}</span></td>
+          <td>
+            ${q.handoff_status ? `<span class="badge ${q.handoff_status === 'failed' ? 'failed' : 'success'}">${escapeHtml(q.handoff_status.toUpperCase())}</span>` : '-'}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // -- PRICING LOGIC --
+    async function fetchPricing() {
+      // Fetch Plans
+      const { data: plans, error: plansError } = await sbClient.from('plans').select('*').order('code');
+      if (plansError) showToast('Unable to load plans: ' + plansError.message, true);
+      if (plans) {
+        document.getElementById('plansGrid').innerHTML = plans.map(p => `
+          <div class="card">
+            <h3>${escapeHtml(p.name)} (${escapeHtml(p.code.toUpperCase())}) · ${escapeHtml(p.entity.replaceAll('_', ' '))}</h3>
+            <div class="form-group">
+              <label>Price (₹)</label>
+              <input type="number" min="0" step="0.01" id="plan_${p.id}" value="${p.price}" />
+            </div>
+            <div class="toggle-group"><label for="plan_active_${p.id}">Active</label><input type="checkbox" id="plan_active_${p.id}" ${p.active ? 'checked' : ''} /></div>
+            <button class="btn-save" onclick="updatePlan('${p.id}')">Update Plan</button>
+          </div>
+        `).join('');
+      }
+
+      // Fetch Fees
+      const { data: fees, error: feesError } = await sbClient.from('fee_items').select('*').order('category').order('sort_order');
+      if (feesError) showToast('Unable to load fees: ' + feesError.message, true);
+      if (fees) {
+        document.getElementById('feesGrid').innerHTML = fees.map(f => `
+          <div class="card">
+            <h3>${escapeHtml(f.name)}</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Basis: ${escapeHtml(f.basis)} | Category: ${escapeHtml(f.category)}</p>
+            <div class="form-group">
+              <label>Amount (₹) ${f.basis === 'per_director' ? '(Per Director)' : ''}</label>
+              <input type="number" min="0" step="0.01" id="fee_amt_${f.id}" value="${f.amount}" />
+            </div>
+            <div class="toggle-group">
+              <label>Active</label>
+              <input type="checkbox" id="fee_active_${f.id}" ${f.active ? 'checked' : ''} />
+            </div>
+            <div class="toggle-group">
+              <label>GST Applies</label>
+              <input type="checkbox" id="fee_gst_${f.id}" ${f.gst_applies ? 'checked' : ''} />
+            </div>
+            <button class="btn-save" onclick="updateFee('${f.id}')" style="margin-top:12px;">Save Changes</button>
+          </div>
+        `).join('');
+      }
+    }
+
+    async function updatePlan(id) {
+      const amount = document.getElementById(`plan_${id}`).value;
+      if (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount) < 0) return showToast('Enter a valid non-negative price.', true);
+      const active = document.getElementById(`plan_active_${id}`).checked;
+      const { error } = await sbClient.from('plans').update({ price: parseFloat(amount), active }).eq('id', id);
+      if (error) showToast(error.message, true);
+      else showToast('Plan updated successfully');
+    }
+
+    async function updateFee(id) {
+      const amount = document.getElementById(`fee_amt_${id}`).value;
+      if (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount) < 0) return showToast('Enter a valid non-negative amount.', true);
+      const active = document.getElementById(`fee_active_${id}`).checked;
+      const gst_applies = document.getElementById(`fee_gst_${id}`).checked;
+      
+      const { error } = await sbClient.from('fee_items').update({
+        amount: parseFloat(amount),
+        active,
+        gst_applies
+      }).eq('id', id);
+
+      if (error) showToast(error.message, true);
+      else showToast('Fee updated successfully');
+    }
+
+  </script>
+</body>
+</html>
