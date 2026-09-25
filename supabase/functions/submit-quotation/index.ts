@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -24,7 +24,7 @@ serve(async (req) => {
     if (!body || typeof body !== 'object') {
       return new Response(JSON.stringify({ error: 'Invalid request body' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    const { entity, state, director_count, plan_code, name, email, phone } = body;
+    const { entity, state, director_count, plan_code, name, email, phone, authorized_capital, pincode, district } = body;
 
     // Validate Input
     if (!['private_limited', 'opc', 'llp', 'public_limited'].includes(entity)) {
@@ -33,13 +33,18 @@ serve(async (req) => {
     if (!Number.isSafeInteger(director_count) || director_count < 0) {
       return new Response(JSON.stringify({ error: 'Invalid director count' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    const authorizedCapital = Number(authorized_capital);
+    if (!Number.isSafeInteger(authorizedCapital) || authorizedCapital < 1) {
+      return new Response(JSON.stringify({ error: 'Please enter a valid authorized capital of at least 1.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     
-    if (typeof name !== 'string' || !name.trim() || name.length > 200 ||
+    if (typeof name !== 'string' || !name.trim() || name.length > 200 || !/^[A-Za-z .'-]+$/.test(name.trim()) ||
         typeof state !== 'string' || !state.trim() || state.length > 100 ||
-        typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+        (email !== undefined && email !== null && email !== '' && (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim()))) ||
         typeof phone !== 'string' || phone.length > 30 ||
-        (plan_code !== undefined && !['basic', 'standard'].includes(plan_code))) {
-      return new Response(JSON.stringify({ error: 'Please provide a valid name, email, state, phone and plan.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        (plan_code !== undefined && !['basic', 'standard', 'premium'].includes(plan_code))) {
+      return new Response(JSON.stringify({ error: 'Please provide a valid name, state, phone and plan.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     let normalizedPhone = phone.replace(/\D/g, '');
     if (normalizedPhone.length === 10) {
@@ -49,12 +54,27 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Invalid phone number' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Rate limiting: Check if this phone has submitted 10+ quotes in the last 1 hour
+    const { data: recentSubmissions, error: rateError } = await supabaseClient
+      .from('quotations')
+      .select('id')
+      .eq('phone', normalizedPhone)
+      .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (rateError) {
+      console.error("Rate limit check error:", rateError);
+      return new Response(JSON.stringify({ error: 'Failed to verify rate limit' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (recentSubmissions && recentSubmissions.length >= 10) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded for this phone number. Please try again later.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     // Call calculate_quote via RPC
     const { data: quoteResult, error: rpcError } = await supabaseClient.rpc('calculate_quote', {
       p_entity: entity,
       p_state: state.trim(),
       p_director_count: director_count,
-      p_authorized_capital: 100000,
+      p_authorized_capital: authorizedCapital,
       p_plan_code: plan_code || 'basic'
     });
 
@@ -76,18 +96,20 @@ serve(async (req) => {
       .insert({
         customer_name: name.trim(),
         phone: normalizedPhone,
-        email: email.trim(),
+        email: (email && typeof email === 'string' && email.trim()) ? email.trim() : null,
         entity: quoteResult.entity,
         company_state: quoteResult.state,
         plan_code: quoteResult.plan_code,
         proposed_director_count: quoteResult.director_count,
-        authorized_capital: quoteResult.authorized_capital,
+        authorized_capital: authorizedCapital,
         valid_until,
         status: 'issued',
         total: quoteResult.total,
         advance_amount: quoteResult.advance_amount,
         balance_amount: quoteResult.balance_amount,
-        quote: quoteResult
+        quote: { ...quoteResult, authorized_capital: authorizedCapital, pincode: pincode ? String(pincode).trim() : null, district: district ? String(district).trim() : null },
+        pincode: pincode ? String(pincode).trim() : null,
+        district: district ? String(district).trim() : null
       }).select('quote_number').single();
 
     if (insertError || !savedQuote) {
@@ -96,7 +118,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, ...quoteResult, quote_number: savedQuote.quote_number, valid_until }),
+      JSON.stringify({ success: true, ...quoteResult, authorized_capital: authorizedCapital, quote_number: savedQuote.quote_number, valid_until }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

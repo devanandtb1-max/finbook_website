@@ -2,3 +2,9 @@ node_modules
 .DS_Store
 dist
 admin/assets
+.env
+.env.*
+!.env.example
+scratch
+supabase/.temp
+*.log

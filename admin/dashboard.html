@@ -16,6 +16,7 @@
     <div class="brand">Finbook Admin</div>
     <button class="nav-btn active" onclick="switchTab('quotations', this)">Quotations & Leads</button>
     <button class="nav-btn" onclick="switchTab('pricing', this)">Pricing & Fees</button>
+    <button class="nav-btn" onclick="switchTab('settings', this)">Contact & Settings</button>
     <button class="logout-btn" onclick="logout()">Sign Out</button>
   </aside>
 
@@ -36,13 +37,14 @@
               <th>Quote #</th>
               <th>Customer</th>
               <th>Phone</th>
+              <th>Authorized Capital</th>
               <th>Total</th>
               <th>Status</th>
               <th>WhatsApp Handoff</th>
             </tr>
           </thead>
           <tbody id="quotationsBody">
-            <tr><td colspan="7" style="text-align:center;">Loading...</td></tr>
+            <tr><td colspan="8" style="text-align:center;">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -57,9 +59,119 @@
       <h3 style="margin: 24px 0 16px; font-weight:500; color:var(--primary);">Base Plans</h3>
       <div class="card-grid" id="plansGrid">Loading...</div>
       
-      <h3 style="margin: 32px 0 16px; font-weight:500; color:var(--primary);">Government & Professional Fees</h3>
+      <div class="header-flex" style="margin-top: 32px; margin-bottom: 16px;">
+        <h3 style="font-weight:500; color:var(--primary); margin:0;">Government & Professional Fees</h3>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <button id="deleteSelectedBtn" class="btn-save" style="width:auto; background:#111; border-color:#111; display:none;" onclick="deleteSelectedFees()">Delete Selected (0)</button>
+          <button class="btn-save" style="width:auto;" onclick="toggleAddFeeForm()">+ Add New Fee Item</button>
+        </div>
+      </div>
+
+      <!-- Add Fee Form Card -->
+      <div id="addFeeFormCard" class="card" style="display:none; margin-bottom: 24px; border: 2px dashed #00000030;">
+        <h3 style="min-height:auto; margin-bottom:16px;">Create New Fee Item</h3>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Fee Name</label>
+            <input type="text" id="new_fee_name" oninput="autoGenFeeCode()" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Fee Code (Unique ID)</label>
+            <input type="text" id="new_fee_code" onchange="this.dataset.userEdited='true'" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Category</label>
+            <select id="new_fee_category" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; background:#fff; font-size:14px;">
+              <option value="government">Government Fees</option>
+              <option value="stamp_duty">Stamp Duty</option>
+              <option value="dsc">DSC Fees</option>
+              <option value="service">Professional / Service Fees</option>
+              <option value="optional">Optional Add-on Fees</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Basis</label>
+            <select id="new_fee_basis" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; background:#fff; font-size:14px;">
+              <option value="flat">Flat Rate</option>
+              <option value="per_director">Per Director</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Amount (₹)</label>
+            <input type="number" min="0" step="0.01" id="new_fee_amount" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" />
+          </div>
+        </div>
+        <div style="display:flex; gap:24px; margin-top:16px;">
+          <div class="toggle-group" style="margin-bottom:0;"><label for="new_fee_active" style="margin-right:8px;">Active</label><input type="checkbox" id="new_fee_active" checked /></div>
+          <div class="toggle-group" style="margin-bottom:0;"><label for="new_fee_gst" style="margin-right:8px;">GST Applies</label><input type="checkbox" id="new_fee_gst" /></div>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:18px;">
+          <button class="btn-save" style="width:auto;" onclick="createFee()">Create Fee Item</button>
+          <button class="btn-save" style="width:auto; background:#666; border-color:#666;" onclick="toggleAddFeeForm()">Cancel</button>
+        </div>
+      </div>
+
       <div class="card-grid" id="feesGrid">Loading...</div>
       
+    </section>
+
+    <!-- Settings Section -->
+    <section id="settings" class="section">
+      <div class="header-flex">
+        <h2 tabindex="-1">Contact & System Settings</h2>
+        <button class="btn-save" style="width:auto;" onclick="fetchSettings()">Refresh Settings</button>
+      </div>
+      <p style="color:var(--text-muted); margin-bottom:24px;">Manage customer-facing support contact details, WhatsApp numbers, operational hours, and system calculation parameters.</p>
+      
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:24px; align-items:start;">
+        <div class="card">
+          <h3 style="margin-bottom:20px; min-height:auto;">Support Contact Details</h3>
+          <form id="contactSettingsForm" onsubmit="saveContactSettings(event)">
+            <div class="form-group">
+              <label for="setting_support_phone">Support Phone Number</label>
+              <input type="text" id="setting_support_phone" placeholder="+919876543210" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" required />
+              <small style="color:var(--text-muted); font-size:11px; display:block; margin-top:4px;">Displayed in the Talk to an Expert modal and Call Now button on customer site.</small>
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label for="setting_support_whatsapp">WhatsApp Support Number</label>
+              <input type="text" id="setting_support_whatsapp" placeholder="+919876543210" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" required />
+              <small style="color:var(--text-muted); font-size:11px; display:block; margin-top:4px;">Used for WhatsApp direct chat link and handoffs.</small>
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label for="setting_support_email">Support Email Address</label>
+              <input type="email" id="setting_support_email" placeholder="support@finbook.in" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" required />
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label for="setting_business_hours">Business Operational Hours</label>
+              <input type="text" id="setting_business_hours" placeholder="Mon-Sat, 9:00 AM - 6:00 PM" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" required />
+            </div>
+            <button type="submit" class="btn-save" style="margin-top:20px; width:100%;">Save Contact Settings</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:20px; min-height:auto;">System Calculation Parameters</h3>
+          <form id="systemSettingsForm" onsubmit="saveSystemSettings(event)">
+            <div class="form-group">
+              <label for="setting_gst_rate_percent">GST Rate (%)</label>
+              <input type="number" min="0" max="100" step="0.1" id="setting_gst_rate_percent" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" required />
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label for="setting_advance_percent">Advance Payment (%)</label>
+              <input type="number" min="0" max="100" step="0.1" id="setting_advance_percent" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" required />
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label for="setting_quotation_valid_days">Quotation Valid (Days)</label>
+              <input type="number" min="1" max="365" step="1" id="setting_quotation_valid_days" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" required />
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label for="setting_default_authorized_capital">Default Authorized Capital (₹)</label>
+              <input type="number" min="0" step="1000" id="setting_default_authorized_capital" style="width:100%; padding:10px; border:1px solid #00000025; border-radius:7px; font-size:14px;" required />
+            </div>
+            <button type="submit" class="btn-save" style="margin-top:20px; width:100%;">Save System Parameters</button>
+          </form>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -98,6 +210,7 @@
       // Load initial data
       fetchQuotations();
       fetchPricing();
+      fetchSettings();
     }
     
     init().catch(() => { document.getElementById('access-status').textContent = 'Unable to verify access. Please reload and try again.'; });
@@ -137,12 +250,12 @@
         .limit(100);
 
       if (error) {
-        tbody.innerHTML = `<tr><td colspan="7" style="color:var(--danger)">Error loading data</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="color:var(--danger)">Error loading data</td></tr>`;
         return;
       }
 
       if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No quotations found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No quotations found.</td></tr>`;
         return;
       }
 
@@ -152,6 +265,7 @@
           <td><b>${escapeHtml(q.quote_number)}</b></td>
           <td>${escapeHtml(q.customer_name)}</td>
           <td>${escapeHtml(q.phone)}</td>
+          <td>₹${Number(q.authorized_capital).toLocaleString('en-IN')}</td>
           <td>₹${Number(q.total).toLocaleString('en-IN')}</td>
           <td><span class="badge ${q.status === 'accepted' ? 'success' : 'pending'}">${escapeHtml(q.status.toUpperCase())}</span></td>
           <td>
@@ -162,6 +276,11 @@
     }
 
     // -- PRICING LOGIC --
+    function toggleAddFeeForm() {
+      const card = document.getElementById('addFeeFormCard');
+      card.style.display = card.style.display === 'none' ? 'block' : 'none';
+    }
+
     async function fetchPricing() {
       // Fetch Plans
       const { data: plans, error: plansError } = await sbClient.from('plans').select('*').order('code');
@@ -186,7 +305,10 @@
       if (fees) {
         document.getElementById('feesGrid').innerHTML = fees.map(f => `
           <div class="card">
-            <h3>${escapeHtml(f.name)}</h3>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:10px;">
+              <h3 style="font-size:16px; margin:0; line-height:1.4; min-height:auto;">${escapeHtml(f.name)}</h3>
+              <input type="checkbox" class="fee-select-checkbox" value="${f.id}" data-name="${escapeHtml(f.name)}" onchange="updateSelectedFeeCount()" style="width:20px; height:20px; cursor:pointer; accent-color:#111; flex-shrink:0;" title="Select for deletion" />
+            </div>
             <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Basis: ${escapeHtml(f.basis)} | Category: ${escapeHtml(f.category)}</p>
             <div class="form-group">
               <label>Amount (₹) ${f.basis === 'per_director' ? '(Per Director)' : ''}</label>
@@ -200,9 +322,76 @@
               <label>GST Applies</label>
               <input type="checkbox" id="fee_gst_${f.id}" ${f.gst_applies ? 'checked' : ''} />
             </div>
-            <button class="btn-save" onclick="updateFee('${f.id}')" style="margin-top:12px;">Save Changes</button>
+            <button class="btn-save" onclick="updateFee('${f.id}')" style="margin-top:12px; width:100%;">Save Changes</button>
           </div>
         `).join('');
+      }
+      updateSelectedFeeCount();
+    }
+
+    function updateSelectedFeeCount() {
+      const selected = document.querySelectorAll('.fee-select-checkbox:checked');
+      const btn = document.getElementById('deleteSelectedBtn');
+      if (btn) {
+        if (selected.length > 0) {
+          btn.style.display = 'inline-block';
+          btn.textContent = `Delete Selected (${selected.length})`;
+        } else {
+          btn.style.display = 'none';
+        }
+      }
+    }
+
+    function autoGenFeeCode() {
+      const nameInput = document.getElementById('new_fee_name');
+      const codeInput = document.getElementById('new_fee_code');
+      if (codeInput && !codeInput.dataset.userEdited) {
+        codeInput.value = nameInput.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      }
+    }
+
+    async function createFee() {
+      const name = document.getElementById('new_fee_name').value.trim();
+      let code = (document.getElementById('new_fee_code')?.value || '').trim();
+      const category = document.getElementById('new_fee_category').value;
+      const basis = document.getElementById('new_fee_basis').value;
+      const amountStr = document.getElementById('new_fee_amount').value;
+      const active = document.getElementById('new_fee_active').checked;
+      const gst_applies = document.getElementById('new_fee_gst').checked;
+
+      if (!name || name.length < 2) return showToast('Please enter a valid fee name (at least 2 characters)', true);
+      if (!amountStr.trim() || !Number.isFinite(Number(amountStr)) || Number(amountStr) < 0) return showToast('Please enter a valid non-negative amount', true);
+
+      if (!code) {
+        code = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        if (!code) code = 'fee_' + Date.now();
+      } else if (!/^[a-z0-9_]+$/.test(code)) {
+        return showToast('Fee code must contain only lowercase letters, numbers, and underscores', true);
+      }
+
+      const { error } = await sbClient.from('fee_items').insert({
+        name,
+        code,
+        category,
+        basis,
+        amount: parseFloat(amountStr),
+        active,
+        gst_applies,
+        sort_order: 99
+      });
+
+      if (error) {
+        showToast('Failed to create fee: ' + error.message, true);
+      } else {
+        showToast('Fee item created successfully!');
+        document.getElementById('new_fee_name').value = '';
+        if (document.getElementById('new_fee_code')) {
+          document.getElementById('new_fee_code').value = '';
+          delete document.getElementById('new_fee_code').dataset.userEdited;
+        }
+        document.getElementById('new_fee_amount').value = '';
+        toggleAddFeeForm();
+        fetchPricing();
       }
     }
 
@@ -229,6 +418,112 @@
 
       if (error) showToast(error.message, true);
       else showToast('Fee updated successfully');
+    }
+
+    async function deleteSelectedFees() {
+      const selectedBoxes = document.querySelectorAll('.fee-select-checkbox:checked');
+      if (selectedBoxes.length === 0) return;
+
+      const selectedIds = Array.from(selectedBoxes).map(cb => cb.value);
+      const names = Array.from(selectedBoxes).map(cb => cb.dataset.name).join('\n• ');
+
+      if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected fee item(s)?\n\n• ${names}`)) {
+        return;
+      }
+
+      const { error } = await sbClient.from('fee_items').delete().in('id', selectedIds);
+
+      if (error) {
+        showToast('Failed to delete fee items: ' + error.message, true);
+      } else {
+        showToast(`Successfully deleted ${selectedIds.length} fee item(s)!`);
+        fetchPricing();
+      }
+    }
+
+    // -- SETTINGS LOGIC --
+    async function fetchSettings() {
+      const { data, error } = await sbClient.from('settings').select('*');
+      if (error) {
+        showToast('Failed to load settings: ' + error.message, true);
+        return;
+      }
+      if (data && Array.isArray(data)) {
+        data.forEach(item => {
+          const el = document.getElementById('setting_' + item.key);
+          if (el) {
+            el.value = item.value ?? '';
+          }
+        });
+      }
+    }
+
+    async function saveContactSettings(e) {
+      e.preventDefault();
+      const phone = document.getElementById('setting_support_phone').value.trim();
+      const whatsapp = document.getElementById('setting_support_whatsapp').value.trim();
+      const email = document.getElementById('setting_support_email').value.trim();
+      const hours = document.getElementById('setting_business_hours').value.trim();
+
+      if (!phone) return showToast('Please enter a support phone number', true);
+      if (!whatsapp) return showToast('Please enter a WhatsApp support number', true);
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast('Please enter a valid support email address', true);
+      if (!hours) return showToast('Please enter business operational hours', true);
+
+      const updates = [
+        { key: 'support_phone', value: phone, updated_at: new Date().toISOString() },
+        { key: 'support_whatsapp', value: whatsapp, updated_at: new Date().toISOString() },
+        { key: 'support_email', value: email, updated_at: new Date().toISOString() },
+        { key: 'business_hours', value: hours, updated_at: new Date().toISOString() }
+      ];
+
+      let hasError = false;
+      for (const item of updates) {
+        const { error } = await sbClient.from('settings').upsert(item, { onConflict: 'key' });
+        if (error) {
+          showToast('Error saving ' + item.key + ': ' + error.message, true);
+          hasError = true;
+          break;
+        }
+      }
+
+      if (!hasError) {
+        showToast('Contact settings saved successfully!');
+      }
+    }
+
+    async function saveSystemSettings(e) {
+      e.preventDefault();
+      const gstRate = document.getElementById('setting_gst_rate_percent').value;
+      const advance = document.getElementById('setting_advance_percent').value;
+      const validDays = document.getElementById('setting_quotation_valid_days').value;
+      const defaultCapital = document.getElementById('setting_default_authorized_capital').value;
+
+      if (!gstRate || Number(gstRate) < 0 || Number(gstRate) > 100) return showToast('Please enter a valid GST rate percentage (0-100)', true);
+      if (!advance || Number(advance) < 0 || Number(advance) > 100) return showToast('Please enter a valid advance payment percentage (0-100)', true);
+      if (!validDays || Number(validDays) < 1) return showToast('Please enter valid quotation validity days', true);
+      if (!defaultCapital || Number(defaultCapital) < 0) return showToast('Please enter a valid default authorized capital', true);
+
+      const updates = [
+        { key: 'gst_rate_percent', value: String(gstRate), updated_at: new Date().toISOString() },
+        { key: 'advance_percent', value: String(advance), updated_at: new Date().toISOString() },
+        { key: 'quotation_valid_days', value: String(validDays), updated_at: new Date().toISOString() },
+        { key: 'default_authorized_capital', value: String(defaultCapital), updated_at: new Date().toISOString() }
+      ];
+
+      let hasError = false;
+      for (const item of updates) {
+        const { error } = await sbClient.from('settings').upsert(item, { onConflict: 'key' });
+        if (error) {
+          showToast('Error saving ' + item.key + ': ' + error.message, true);
+          hasError = true;
+          break;
+        }
+      }
+
+      if (!hasError) {
+        showToast('System parameters saved successfully!');
+      }
     }
 
   </script>

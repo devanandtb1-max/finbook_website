@@ -1,0 +1,10 @@
+{
+  "deno.enable": true,
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
+  "deno.config": "supabase/deno.json",
+  "deno.importMap": "supabase/deno.json",
+  "deno.unstable": true,
+  "typescript.tsdk": "node_modules/typescript/lib"
+}

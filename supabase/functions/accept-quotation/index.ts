@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -72,26 +72,27 @@ serve(async (req) => {
     }
 
     // 3. Call n8n webhook
-    const n8nUrl = Deno.env.get('N8N_WEBHOOK_URL');
+    const n8nUrl = Deno.env.get('N8N_WEBHOOK_URL') || 'https://n8n.srv1691210.hstgr.cloud/webhook/finface-payment-success';
     const n8nSecret = Deno.env.get('N8N_WEBHOOK_SECRET') || Deno.env.get('FINBOOK_SECRET');
 
     let handoffStatus = 'failed';
-    let handoffError = null;
-    let n8nSessionId = null;
+    let handoffError: string | null = null;
+    let n8nSessionId: string | null = null;
     let workflowTriggered = false;
 
-    if (n8nUrl && n8nSecret) {
+    if (n8nUrl) {
       try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (n8nSecret) headers['x-finbook-secret'] = n8nSecret;
+
         const n8nResponse = await fetch(n8nUrl, {
           method: 'POST',
           signal: AbortSignal.timeout(15000),
-          headers: {
-            'Content-Type': 'application/json',
-            'x-finbook-secret': n8nSecret
-          },
+          headers,
           body: JSON.stringify({
             phone: quote.phone,
-            company_type: quote.quote.company_type,
+            customer_name: quote.name,
+            company_type: quote.company_type || (quote.quote && quote.quote.company_type),
             proposed_director_count: quote.proposed_director_count,
             company_state: quote.company_state,
             authorized_capital: quote.authorized_capital,
@@ -101,21 +102,22 @@ serve(async (req) => {
 
         if (n8nResponse.ok) {
           workflowTriggered = true;
-          const result = await n8nResponse.json();
+          let result: Record<string, any> = {};
+          try { result = await n8nResponse.json(); } catch (_) {}
           if (result.success !== false && result.whatsapp_sent === true) {
             handoffStatus = 'sent';
-            n8nSessionId = result.sessionID;
+            n8nSessionId = result.sessionID || null;
           } else {
             handoffError = 'n8n did not confirm WhatsApp delivery';
           }
         } else {
           handoffError = `n8n responded with ${n8nResponse.status}`;
         }
-      } catch (e) {
-        handoffError = e instanceof Error ? e.message : String(e);
+      } catch (e: any) {
+        handoffError = (e && typeof e === 'object' && 'message' in e) ? String(e.message) : String(e);
       }
     } else {
-      handoffError = 'n8n URL or secret not configured';
+      handoffError = 'n8n URL not configured';
     }
 
     // 4. Update handoff status
@@ -139,7 +141,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
     return new Response(JSON.stringify({ error: 'Unable to accept your quotation. Please try again.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
