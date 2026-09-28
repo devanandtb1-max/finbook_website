@@ -26,8 +26,8 @@ jobs:
       - name: Run Core Regression Tests
         run: npm test
 
-      - name: Run Admin UI Tests
-        run: npm run test:admin
-
       - name: Build Application Assets
         run: npm run build
+
+      - name: Run Admin UI Tests
+        run: npm run test:admin
