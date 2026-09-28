@@ -1,8 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { JSDOM } from 'jsdom';
-const bundle = readFileSync('admin/assets/js/admin-ui.js', 'utf8');
+const bundlePath = existsSync('admin/assets/admin-ui.js')
+  ? 'admin/assets/admin-ui.js'
+  : 'admin/assets/js/admin-ui.js';
+const bundle = readFileSync(bundlePath, 'utf8');
 const pause = () => new Promise(resolve => setTimeout(resolve,50));
 function query() { const q={then: r => Promise.resolve({data:[]}).then(r)}; for(const k of ['select','order','limit'])q[k]=()=>q; return q; }
 const dom=new JSDOM(readFileSync('admin/dashboard.html','utf8'),{url:'http://localhost/admin/dashboard.html',runScripts:'outside-only',pretendToBeVisual:true});

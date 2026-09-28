@@ -29,5 +29,10 @@ jobs:
       - name: Build Application Assets
         run: npm run build
 
+      - name: Debug Build Output
+        run: |
+          echo "==== ADMIN ===="
+          find admin -type f || true
+
       - name: Run Admin UI Tests
         run: npm run test:admin
