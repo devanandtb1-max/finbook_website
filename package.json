@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:admin && vite build",
+    "build": "npm run build:admin && vite build && node -e \"const fs=require('fs'); console.log('==== DIST CONTENTS ===='); console.log(fs.readdirSync('dist')); console.log('==== DIST/JS CONTENTS ===='); console.log(fs.readdirSync('dist/js')); if(!fs.existsSync('dist/js/app.js')) throw new Error('dist/js/app.js missing!'); console.log('✓ Verified dist/js/app.js exists (' + fs.statSync('dist/js/app.js').size + ' bytes)');\"",
     "build:admin": "tsc -p admin-ui/tsconfig.json && vite build --config admin-ui/vite.config.ts",
     "test": "node tests/regression.mjs",
     "test:admin": "node tests/admin-ui.mjs"
