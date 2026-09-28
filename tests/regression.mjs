@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
@@ -70,7 +70,9 @@ async function page(file, client) {
     const src = script.getAttribute('src');
     if (src && !src.startsWith('http') && !src.startsWith('//')) {
       try {
-        const code = readFileSync(src.replace(/^\//, ''), 'utf8');
+        const p = src.replace(/^\//, '');
+        const scriptPath = existsSync(p) ? p : `public/${p}`;
+        const code = readFileSync(scriptPath, 'utf8');
         vm.runInContext(code, dom.getInternalVMContext());
       } catch(e) {}
     } else if (!src) {
