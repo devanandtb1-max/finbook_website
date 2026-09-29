@@ -16,8 +16,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:admin && vite build && node -e \"const fs=require('fs'); console.log('==== DIST CONTENTS ===='); console.log(fs.readdirSync('dist')); console.log('==== DIST/JS CONTENTS ===='); console.log(fs.readdirSync('dist/js')); console.log('==== DIST/ADMIN/ASSETS CONTENTS ===='); console.log(fs.readdirSync('dist/admin/assets')); if(!fs.existsSync('dist/js/app.js')) throw new Error('dist/js/app.js missing!'); if(!fs.existsSync('dist/admin/assets/admin-ui.js')) throw new Error('dist/admin/assets/admin-ui.js missing!'); if(!fs.existsSync('dist/admin/assets/admin-ui.css')) throw new Error('dist/admin/assets/admin-ui.css missing!'); console.log('✓ Verified dist/js/app.js exists (' + fs.statSync('dist/js/app.js').size + ' bytes)'); console.log('✓ Verified dist/admin/assets/admin-ui.js exists (' + fs.statSync('dist/admin/assets/admin-ui.js').size + ' bytes)'); console.log('✓ Verified dist/admin/assets/admin-ui.css exists (' + fs.statSync('dist/admin/assets/admin-ui.css').size + ' bytes)');\"",
-    "build:admin": "tsc -p admin-ui/tsconfig.json && vite build --config admin-ui/vite.config.ts && node -e \"const fs=require('fs'); fs.mkdirSync('public/admin/assets', {recursive:true}); fs.copyFileSync('admin/assets/admin-ui.js', 'public/admin/assets/admin-ui.js'); fs.copyFileSync('admin/assets/admin-ui.css', 'public/admin/assets/admin-ui.css');\"",
+    "build": "npm run build:admin && vite build",
+    "build:admin": "tsc -p admin-ui/tsconfig.json && vite build --config admin-ui/vite.config.ts",
     "test": "node tests/regression.mjs",
     "test:admin": "node tests/admin-ui.mjs"
   }
