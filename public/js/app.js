@@ -311,7 +311,39 @@ function validateCapitalInput(inputEl, errorEl, labelName) {
 
 function getStateFromPincodePrefix(pincode) {
   if (!/^\d{6}$/.test(pincode)) return null;
+  const prefix3 = pincode.slice(0, 3);
   const prefix2 = pincode.slice(0, 2);
+
+  const map3 = {
+    '670': { state: 'Kerala', district: 'Kannur' },
+    '671': { state: 'Kerala', district: 'Kasaragod' },
+    '673': { state: 'Kerala', district: 'Kozhikode' },
+    '676': { state: 'Kerala', district: 'Malappuram' },
+    '678': { state: 'Kerala', district: 'Palakkad' },
+    '679': { state: 'Kerala', district: 'Palakkad' },
+    '680': { state: 'Kerala', district: 'Thrissur' },
+    '682': { state: 'Kerala', district: 'Ernakulam' },
+    '683': { state: 'Kerala', district: 'Ernakulam' },
+    '685': { state: 'Kerala', district: 'Idukki' },
+    '686': { state: 'Kerala', district: 'Kottayam' },
+    '688': { state: 'Kerala', district: 'Alappuzha' },
+    '689': { state: 'Kerala', district: 'Pathanamthitta' },
+    '690': { state: 'Kerala', district: 'Alappuzha' },
+    '691': { state: 'Kerala', district: 'Kollam' },
+    '695': { state: 'Kerala', district: 'Thiruvananthapuram' },
+    '110': { state: 'Delhi', district: 'New Delhi' },
+    '400': { state: 'Maharashtra', district: 'Mumbai' },
+    '411': { state: 'Maharashtra', district: 'Pune' },
+    '500': { state: 'Telangana', district: 'Hyderabad' },
+    '560': { state: 'Karnataka', district: 'Bengaluru' },
+    '600': { state: 'Tamil Nadu', district: 'Chennai' },
+    '641': { state: 'Tamil Nadu', district: 'Coimbatore' },
+    '700': { state: 'West Bengal', district: 'Kolkata' },
+    '380': { state: 'Gujarat', district: 'Ahmedabad' },
+    '302': { state: 'Rajasthan', district: 'Jaipur' }
+  };
+  if (map3[prefix3]) return map3[prefix3];
+
   const map = {
     '11': { state: 'Delhi', district: '' },
     '12': { state: 'Haryana', district: '' },
