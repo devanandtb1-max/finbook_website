@@ -85,6 +85,7 @@ serve(async (req: Request) => {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (n8nSecret) headers['x-finbook-secret'] = n8nSecret;
 
+        const pincode = quote.pincode || (quote.quote && quote.quote.pincode) || null;
         const n8nResponse = await fetch(n8nUrl, {
           method: 'POST',
           signal: AbortSignal.timeout(15000),
@@ -95,6 +96,8 @@ serve(async (req: Request) => {
             company_type: quote.company_type || (quote.quote && quote.quote.company_type),
             proposed_director_count: quote.proposed_director_count,
             company_state: quote.company_state,
+            office_location: quote.company_state || null,
+            pincode: pincode,
             authorized_capital: quote.authorized_capital,
             quote_number: quote.quote_number
           })

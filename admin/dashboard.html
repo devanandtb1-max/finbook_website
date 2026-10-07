@@ -15,6 +15,7 @@
   <aside class="sidebar" style="display:none">
     <div class="brand">Finbook Admin</div>
     <button class="nav-btn active" onclick="switchTab('quotations', this)">Quotations & Leads</button>
+    <button class="nav-btn" onclick="switchTab('callbacks', this)">Callback Requests</button>
     <button class="nav-btn" onclick="switchTab('pricing', this)">Pricing & Fees</button>
     <button class="nav-btn" onclick="switchTab('settings', this)">Contact & Settings</button>
     <button class="logout-btn" onclick="logout()">Sign Out</button>
@@ -45,6 +46,32 @@
           </thead>
           <tbody id="quotationsBody">
             <tr><td colspan="8" style="text-align:center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Callback Requests Section -->
+    <section id="callbacks" class="section">
+      <div class="header-flex">
+        <h2 tabindex="-1">Callback Requests</h2>
+        <button class="btn-save" style="width:auto;" onclick="fetchCallbackRequests()">Refresh Data</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Date &amp; Time</th>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Company Type</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="callbacksBody">
+            <tr><td colspan="7" style="text-align:center;">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -209,6 +236,7 @@
       
       // Load initial data
       fetchQuotations();
+      fetchCallbackRequests();
       fetchPricing();
       fetchSettings();
     }
@@ -216,8 +244,16 @@
     init().catch(() => { document.getElementById('access-status').textContent = 'Unable to verify access. Please reload and try again.'; });
 
     document.addEventListener('admin-navigate', event => {
+      const tabId = event.detail;
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      if (event.detail !== 'home') document.getElementById(event.detail)?.classList.add('active');
+      if (tabId !== 'home') {
+        const sec = document.getElementById(tabId);
+        if (sec) sec.classList.add('active');
+        if (tabId === 'pricing') fetchPricing();
+        if (tabId === 'callbacks') fetchCallbackRequests();
+        if (tabId === 'quotations') fetchQuotations();
+        if (tabId === 'settings') fetchSettings();
+      }
     });
     document.addEventListener('admin-logout', () => logout());
     // Tab Switching
@@ -226,6 +262,10 @@
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
       document.getElementById(id).classList.add('active');
       btn?.classList.add('active');
+      if (id === 'pricing') fetchPricing();
+      if (id === 'callbacks') fetchCallbackRequests();
+      if (id === 'quotations') fetchQuotations();
+      if (id === 'settings') fetchSettings();
     }
 
     async function logout() {
@@ -275,6 +315,62 @@
       `).join('');
     }
 
+    
+    // -- CALLBACK REQUESTS LOGIC --
+    async function fetchCallbackRequests() {
+      const tbody = document.getElementById('callbacksBody');
+      if (!tbody) return;
+      try {
+        const { data, error } = await sbClient
+          .from('callback_requests')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (error) {
+          tbody.innerHTML = `<tr><td colspan="7" style="color:var(--danger)">Error loading callbacks: ${escapeHtml(error.message)}</td></tr>`;
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No callback requests found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.map(cb => `
+          <tr>
+            <td>${cb.created_at ? new Date(cb.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}</td>
+            <td>${escapeHtml(cb.customer_name || '-')}</td>
+            <td><a href="tel:${escapeHtml(cb.phone)}" style="color:var(--primary); font-weight:bold;">${escapeHtml(cb.phone)}</a></td>
+            <td>${escapeHtml(cb.business_type || '-')}</td>
+            <td>${cb.quotation_amount ? '₹' + Number(cb.quotation_amount).toLocaleString('en-IN') : '-'}</td>
+            <td><span class="badge ${cb.status === 'converted' ? 'success' : (cb.status === 'contacted' ? 'pending' : 'failed')}">${escapeHtml((cb.status || 'pending').toUpperCase())}</span></td>
+            <td>
+              <select onchange="updateCallbackStatus('${cb.id}', this.value)" style="padding:4px 8px; border-radius:4px; font-size:12px;">
+                <option value="pending" ${cb.status === 'pending' ? 'selected' : ''}>Pending</option>
+                <option value="contacted" ${cb.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+                <option value="converted" ${cb.status === 'converted' ? 'selected' : ''}>Converted</option>
+                <option value="closed" ${cb.status === 'closed' ? 'selected' : ''}>Closed</option>
+              </select>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="color:var(--danger)">Error loading callbacks: ${escapeHtml(err.message || err)}</td></tr>`;
+      }
+    }
+
+    async function updateCallbackStatus(id, newStatus) {
+      const { error } = await sbClient.from('callback_requests').update({ status: newStatus }).eq('id', id);
+      if (error) {
+        showToast('Failed to update callback status: ' + error.message, true);
+      } else {
+        showToast('Callback status updated to ' + newStatus);
+        fetchCallbackRequests();
+      }
+    }
+
+
     // -- PRICING LOGIC --
     function toggleAddFeeForm() {
       const card = document.getElementById('addFeeFormCard');
@@ -282,49 +378,66 @@
     }
 
     async function fetchPricing() {
+      const pGrid = document.getElementById('plansGrid');
+      const fGrid = document.getElementById('feesGrid');
+
       // Fetch Plans
-      const { data: plans, error: plansError } = await sbClient.from('plans').select('*').order('code');
-      if (plansError) showToast('Unable to load plans: ' + plansError.message, true);
-      if (plans) {
-        document.getElementById('plansGrid').innerHTML = plans.map(p => `
-          <div class="card">
-            <h3>${escapeHtml(p.name)} (${escapeHtml(p.code.toUpperCase())}) · ${escapeHtml(p.entity.replaceAll('_', ' '))}</h3>
-            <div class="form-group">
-              <label>Price (₹)</label>
-              <input type="number" min="0" step="0.01" id="plan_${p.id}" value="${p.price}" />
+      try {
+        const { data: plans, error: plansError } = await sbClient.from('plans').select('*').order('code');
+        if (plansError) throw plansError;
+        if (!plans || plans.length === 0) {
+          if (pGrid) pGrid.innerHTML = `<p style="color:var(--text-muted); grid-column:1/-1;">No base plans configured.</p>`;
+        } else if (pGrid) {
+          pGrid.innerHTML = plans.map(p => `
+            <div class="card">
+              <h3>${escapeHtml(p.name || '')} (${escapeHtml((p.code || '').toUpperCase())}) · ${escapeHtml((p.entity || '').replace(/_/g, ' '))}</h3>
+              <div class="form-group">
+                <label>Price (₹)</label>
+                <input type="number" min="0" step="0.01" id="plan_${p.id}" value="${p.price}" />
+              </div>
+              <div class="toggle-group"><label for="plan_active_${p.id}">Active</label><input type="checkbox" id="plan_active_${p.id}" ${p.active ? 'checked' : ''} /></div>
+              <button class="btn-save" onclick="updatePlan('${p.id}')">Update Plan</button>
             </div>
-            <div class="toggle-group"><label for="plan_active_${p.id}">Active</label><input type="checkbox" id="plan_active_${p.id}" ${p.active ? 'checked' : ''} /></div>
-            <button class="btn-save" onclick="updatePlan('${p.id}')">Update Plan</button>
-          </div>
-        `).join('');
+          `).join('');
+        }
+      } catch (err) {
+        showToast('Unable to load plans: ' + (err.message || err), true);
+        if (pGrid) pGrid.innerHTML = `<p style="color:var(--danger, #e53e3e); grid-column:1/-1;">Unable to load plans: ${escapeHtml(err.message || err)}</p>`;
       }
 
       // Fetch Fees
-      const { data: fees, error: feesError } = await sbClient.from('fee_items').select('*').order('category').order('sort_order');
-      if (feesError) showToast('Unable to load fees: ' + feesError.message, true);
-      if (fees) {
-        document.getElementById('feesGrid').innerHTML = fees.map(f => `
-          <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:10px;">
-              <h3 style="font-size:16px; margin:0; line-height:1.4; min-height:auto;">${escapeHtml(f.name)}</h3>
-              <input type="checkbox" class="fee-select-checkbox" value="${f.id}" data-name="${escapeHtml(f.name)}" onchange="updateSelectedFeeCount()" style="width:20px; height:20px; cursor:pointer; accent-color:#111; flex-shrink:0;" title="Select for deletion" />
+      try {
+        const { data: fees, error: feesError } = await sbClient.from('fee_items').select('*').order('category').order('sort_order');
+        if (feesError) throw feesError;
+        if (!fees || fees.length === 0) {
+          if (fGrid) fGrid.innerHTML = `<p style="color:var(--text-muted); grid-column:1/-1;">No fee items configured.</p>`;
+        } else if (fGrid) {
+          fGrid.innerHTML = fees.map(f => `
+            <div class="card">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:10px;">
+                <h3 style="font-size:16px; margin:0; line-height:1.4; min-height:auto;">${escapeHtml(f.name)}</h3>
+                <input type="checkbox" class="fee-select-checkbox" value="${f.id}" data-name="${escapeHtml(f.name)}" onchange="updateSelectedFeeCount()" style="width:20px; height:20px; cursor:pointer; accent-color:#111; flex-shrink:0;" title="Select for deletion" />
+              </div>
+              <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Basis: ${escapeHtml(f.basis)} | Category: ${escapeHtml(f.category)}</p>
+              <div class="form-group">
+                <label>Amount (₹) ${f.basis === 'per_director' ? '(Per Director)' : ''}</label>
+                <input type="number" min="0" step="0.01" id="fee_amt_${f.id}" value="${f.amount}" />
+              </div>
+              <div class="toggle-group">
+                <label>Active</label>
+                <input type="checkbox" id="fee_active_${f.id}" ${f.active ? 'checked' : ''} />
+              </div>
+              <div class="toggle-group">
+                <label>GST Applies</label>
+                <input type="checkbox" id="fee_gst_${f.id}" ${f.gst_applies ? 'checked' : ''} />
+              </div>
+              <button class="btn-save" onclick="updateFee('${f.id}')" style="margin-top:12px; width:100%;">Save Changes</button>
             </div>
-            <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Basis: ${escapeHtml(f.basis)} | Category: ${escapeHtml(f.category)}</p>
-            <div class="form-group">
-              <label>Amount (₹) ${f.basis === 'per_director' ? '(Per Director)' : ''}</label>
-              <input type="number" min="0" step="0.01" id="fee_amt_${f.id}" value="${f.amount}" />
-            </div>
-            <div class="toggle-group">
-              <label>Active</label>
-              <input type="checkbox" id="fee_active_${f.id}" ${f.active ? 'checked' : ''} />
-            </div>
-            <div class="toggle-group">
-              <label>GST Applies</label>
-              <input type="checkbox" id="fee_gst_${f.id}" ${f.gst_applies ? 'checked' : ''} />
-            </div>
-            <button class="btn-save" onclick="updateFee('${f.id}')" style="margin-top:12px; width:100%;">Save Changes</button>
-          </div>
-        `).join('');
+          `).join('');
+        }
+      } catch (err) {
+        showToast('Unable to load fees: ' + (err.message || err), true);
+        if (fGrid) fGrid.innerHTML = `<p style="color:var(--danger, #e53e3e); grid-column:1/-1;">Unable to load fees: ${escapeHtml(err.message || err)}</p>`;
       }
       updateSelectedFeeCount();
     }

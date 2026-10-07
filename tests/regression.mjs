@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 
-const quote = { id: 'id', quote_number: 'FB-test', status: 'issued', phone: '919876543210', customer_name: '<img src=x onerror=alert(1)>', total: 12995, proposed_director_count: 2, company_state: 'Kerala', authorized_capital: 100000, created_at: new Date().toISOString(), handoff_status: 'failed', quote: { company_type: 'Private Limited Company', entity: 'private_limited', plan_code: 'basic', director_count: 2, state: 'Kerala', authorized_capital: 100000 } };
+const quote = { id: 'id', quote_number: 'FB-test', status: 'issued', phone: '919876543210', customer_name: '<img src=x onerror=alert(1)>', total: 12995, proposed_director_count: 2, company_state: 'Kerala', pincode: '695001', authorized_capital: 100000, created_at: new Date().toISOString(), handoff_status: 'failed', quote: { company_type: 'Private Limited Company', entity: 'private_limited', plan_code: 'basic', director_count: 2, state: 'Kerala', pincode: '695001', authorized_capital: 100000 } };
 let checks = 0;
 function check(condition, message) { assert.ok(condition, message); checks++; }
 function chain(result, record) {
@@ -18,7 +18,7 @@ async function edge(name, { results = [], rpcResult = {}, webhook = { success: t
     .replace(/^import .*;\r?\n/gm, '')
     .replace(/:\s*(Request|Response|string|number|boolean|any|unknown|Record<[^>]+>|\{\s*\[key:\s*string\]:\s*any\s*\})(\s*\|\s*null)?/g, '');
   const client = { rpc: async () => rpcResult, from: () => chain(results[calls++] || {}, (method, args) => { if (['insert', 'update'].includes(method)) writes.push(args[0]); }) };
-  vm.runInNewContext(source, { serve: fn => handler = fn, createClient: () => client, Deno: { env: { get: key => env[key] } }, Request, Response, crypto, AbortSignal, console: { error() {} }, fetch: async (_url, options) => { sends++; payloads.push(JSON.parse(options.body)); return Response.json(webhook); } });
+  vm.runInNewContext(source, { serve: fn => handler = fn, createClient: () => client, Deno: { env: { get: key => env[key] } }, Request, Response, crypto, AbortSignal, console: { log() {}, error() {} }, fetch: async (_url, options) => { sends++; payloads.push(JSON.parse(options.body)); return Response.json(webhook); } });
   return { call: body => handler(new Request('http://localhost', { method: 'POST', body: JSON.stringify(body) })), get sends() { return sends; }, writes, payloads };
 }
 const base = { entity: 'private_limited', director_count: 2, authorized_capital: 100000, plan_code: 'basic', state: 'Kerala', name: 'Example', email: 'example@example.com', phone: '9876543210' };
@@ -52,12 +52,36 @@ for (const [label, row, rate, claim, expected, sends] of [
   const fn = await edge('accept-quotation', { results: [{ data: row }, rate, claim, {}], env });
   check((await fn.call({ quote_number: 'FB-test' })).status === expected, label);
   check(fn.sends === sends, `${label}: webhook count`);
-  if (sends) check(fn.payloads[0].company_type === 'Private Limited Company' && fn.payloads[0].proposed_director_count === 2 && fn.payloads[0].company_state === 'Kerala', 'Webhook uses persisted schema fields and frozen company label');
+  if (sends) check(fn.payloads[0].company_type === 'Private Limited Company' && fn.payloads[0].proposed_director_count === 2 && fn.payloads[0].company_state === 'Kerala' && fn.payloads[0].pincode === '695001', 'Webhook uses persisted schema fields, pincode, and frozen company label');
 }
 for (const webhook of [{ whatsapp_sent: false }, {}, { success: false, whatsapp_sent: true }]) {
   const fn = await edge('accept-quotation', { results: [{ data: quote }, { data: [] }, { data: { id: 'id' } }, {}], env, webhook });
   check((await (await fn.call({ quote_number: 'FB-test' })).json()).handoffStatus === 'failed', 'Unconfirmed webhook is failed');
 }
+
+// Test request-callback edge function
+const cbMissing = await edge('request-callback');
+check((await cbMissing.call({})).status === 400, 'Request-callback rejects missing quotation_id');
+
+const cbNotFound = await edge('request-callback', { results: [{ data: null }] });
+check((await cbNotFound.call({ quote_number: 'NON-EXISTENT' })).status === 404, 'Request-callback returns 404 for missing quotation');
+
+const cbDup = await edge('request-callback', { results: [{ data: quote }, { data: [{ id: 'existing-cb' }] }] });
+check((await cbDup.call({ quote_number: 'FB-test' })).status === 409, 'Request-callback enforces 24h duplicate prevention');
+
+const cbValid = await edge('request-callback', {
+  results: [
+    { data: quote },
+    { data: [] },
+    { data: { id: 'cb-123', quotation_id: quote.id, application_reference: quote.quote_number, status: 'pending' } },
+    {}
+  ],
+  env: { SUPPORT_EMAIL: 'support@createcompany.ai', SUPPORT_WHATSAPP: '+919876543210' }
+});
+const cbResp = await cbValid.call({ quote_number: 'FB-test' });
+check(cbResp.status === 200, 'Request-callback succeeds for valid quotation');
+check(cbValid.writes[0].application_reference === 'FB-test' && cbValid.writes[0].customer_name === quote.customer_name, 'Callback request inserted with correct quotation data');
+check(cbValid.payloads[0].pincode === '695001', 'Request-callback webhook includes pincode');
 
 async function page(file, client) {
   const dom = new JSDOM(readFileSync(file, 'utf8'), { url: 'https://example.com/' + file, runScripts: 'outside-only' });
@@ -79,7 +103,7 @@ async function page(file, client) {
       vm.runInContext(script.textContent, dom.getInternalVMContext());
     }
   }
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await new Promise(resolve => setTimeout(resolve, 60));
   return dom;
 }
 const dom = await page('index.html');
@@ -185,6 +209,23 @@ check(w.document.getElementById('flow-content').textContent.includes('could not 
 w.showHandoff('sent');
 check(w.document.getElementById('flow-content').textContent.includes('We’ve sent'), 'Confirmed handoff succeeds');
 check(!w.document.body.textContent.includes('Razorpay'), 'No payment gateway promise');
+const cbBtn = w.document.getElementById('btn-request-callback');
+const waBtn = w.document.getElementById('btn-whatsapp-handoff');
+check(cbBtn !== null, 'Request Expert Call Back button is present');
+check(waBtn !== null, 'Chat with FinBot on WhatsApp button is present');
+check(cbBtn.nextElementSibling.id === 'callback-status' && cbBtn.nextElementSibling.nextElementSibling === waBtn, 'Request Expert Call Back button is placed directly above WhatsApp button');
+
+let cbApiPayload;
+const origFetch = w.fetch;
+w.fetch = async (url, options) => {
+  if (options && options.body) cbApiPayload = JSON.parse(options.body);
+  return new Response(JSON.stringify({ success: true, message: '✓ Callback Request Submitted' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+};
+vm.runInContext(`currentQuote = { id: 'quote-123', quote_number: 'FB-test' };`, dom.getInternalVMContext());
+await w.requestExpertCallback(cbBtn);
+check(cbApiPayload.quotation_id === 'quote-123' && cbApiPayload.quote_number === 'FB-test', 'requestExpertCallback sends currentQuote info');
+check(cbBtn.disabled === true, 'Request Expert Call Back button disabled after submission');
+check(w.document.getElementById('callback-status').textContent.includes('Callback Request Submitted'), 'Success feedback displayed');
 dom.window.close();
 
 let reads = 0;
@@ -197,12 +238,14 @@ check(admin.window.document.getElementById('quotationsBody').textContent.include
 check(admin.window.document.getElementById('quotationsBody').textContent.includes('1,00,000'), 'Admin shows saved authorized capital');
 check(admin.window.document.getElementById('quotationsBody').textContent.includes('12,995'), 'Admin shows saved total');
 check(!admin.window.document.getElementById('quotationsBody').querySelector('img'), 'Customer content escaped');
+check(admin.window.document.getElementById('callbacksBody') !== null, 'Admin contains callbacks section');
 admin.window.close();
 const priceWrites = [];
 const pricing = await page('admin/dashboard.html', {
   auth: { getSession: async () => ({ data: { session: {} } }) }, rpc: async () => ({ data: true }),
   from: table => chain({ data: table === 'plans' ? [{ id: 'plan1', name: 'Basic', code: 'basic', entity: 'private_limited', price: 2499, active: true }] : table === 'fee_items' ? [{ id: 'fee1', name: 'DSC', basis: 'per_director', category: 'dsc', amount: 2500, active: true, gst_applies: false }] : [] }, (method, args) => { if (method === 'update') priceWrites.push({ table, value: args[0] }); })
 });
+await pricing.window.fetchPricing();
 check(pricing.window.document.getElementById('plan_plan1').value === '2499', 'Plan uses price');
 check(pricing.window.document.getElementById('plan_active_plan1').checked, 'Plan uses active');
 check(pricing.window.document.getElementById('fee_active_fee1').checked, 'Fee uses active');

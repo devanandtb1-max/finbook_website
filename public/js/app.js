@@ -1,3 +1,29 @@
+
+function checkBusinessHoursIST(nowDate = new Date()) {
+  try {
+    const options = { timeZone: 'Asia/Kolkata', hour12: false, weekday: 'short', hour: '2-digit', minute: '2-digit' };
+    const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(nowDate);
+    let weekday = '';
+    let hour = 0;
+    let minute = 0;
+    for (const part of parts) {
+      if (part.type === 'weekday') weekday = part.value;
+      if (part.type === 'hour') hour = parseInt(part.value, 10);
+      if (part.type === 'minute') minute = parseInt(part.value, 10);
+    }
+    if (weekday === 'Sun') {
+      return { allowed: false, reason: 'Callback requests are unavailable on Sundays. Business operational hours are Mon-Sat, 9:00 AM - 6:00 PM IST.' };
+    }
+    const mins = hour * 60 + minute;
+    if (mins < 9 * 60 || mins >= 18 * 60) {
+      return { allowed: false, reason: 'Callback requests are only available during business operational hours (Mon-Sat, 9:00 AM - 6:00 PM IST).' };
+    }
+    return { allowed: true };
+  } catch (e) {
+    return { allowed: true };
+  }
+}
+
 const APP_CONFIG = window.APP_CONFIG || {};
 const SUPABASE_URL = APP_CONFIG.SUPABASE_URL || (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) || 'https://nuiflptifdkexotxnxcp.supabase.co';
 const SUPABASE_ANON_KEY = APP_CONFIG.SUPABASE_ANON_KEY || (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) || 'sb_publishable_GfhZQfgUfhaiszDCu5JBZw_2c5zcNoG';
@@ -287,75 +313,75 @@ function getStateFromPincodePrefix(pincode) {
   if (!/^\d{6}$/.test(pincode)) return null;
   const prefix2 = pincode.slice(0, 2);
   const map = {
-    '11': { state: 'Delhi', district: 'New Delhi' },
-    '12': { state: 'Haryana', district: 'Gurugram' },
-    '13': { state: 'Haryana', district: 'Faridabad' },
-    '14': { state: 'Punjab', district: 'Ludhiana' },
-    '15': { state: 'Punjab', district: 'Amritsar' },
-    '16': { state: 'Chandigarh', district: 'Chandigarh' },
-    '17': { state: 'Himachal Pradesh', district: 'Shimla' },
-    '18': { state: 'Jammu and Kashmir', district: 'Jammu' },
-    '19': { state: 'Jammu and Kashmir', district: 'Srinagar' },
-    '20': { state: 'Uttar Pradesh', district: 'Noida' },
-    '21': { state: 'Uttar Pradesh', district: 'Allahabad' },
-    '22': { state: 'Uttar Pradesh', district: 'Lucknow' },
-    '23': { state: 'Uttar Pradesh', district: 'Varanasi' },
-    '24': { state: 'Uttar Pradesh', district: 'Bareilly' },
-    '25': { state: 'Uttar Pradesh', district: 'Meerut' },
-    '26': { state: 'Uttarakhand', district: 'Dehradun' },
-    '27': { state: 'Uttar Pradesh', district: 'Gorakhpur' },
-    '28': { state: 'Uttar Pradesh', district: 'Agra' },
-    '30': { state: 'Rajasthan', district: 'Jaipur' },
-    '31': { state: 'Rajasthan', district: 'Udaipur' },
-    '32': { state: 'Rajasthan', district: 'Kota' },
-    '33': { state: 'Rajasthan', district: 'Bikaner' },
-    '34': { state: 'Rajasthan', district: 'Jodhpur' },
-    '36': { state: 'Gujarat', district: 'Rajkot' },
-    '37': { state: 'Gujarat', district: 'Kutch' },
-    '38': { state: 'Gujarat', district: 'Ahmedabad' },
-    '39': { state: 'Gujarat', district: 'Surat' },
-    '40': { state: 'Maharashtra', district: 'Mumbai' },
-    '41': { state: 'Maharashtra', district: 'Pune' },
-    '42': { state: 'Maharashtra', district: 'Nashik' },
-    '43': { state: 'Maharashtra', district: 'Aurangabad' },
-    '44': { state: 'Maharashtra', district: 'Nagpur' },
-    '45': { state: 'Madhya Pradesh', district: 'Indore' },
-    '46': { state: 'Madhya Pradesh', district: 'Bhopal' },
-    '47': { state: 'Madhya Pradesh', district: 'Gwalior' },
-    '48': { state: 'Madhya Pradesh', district: 'Jabalpur' },
-    '49': { state: 'Chhattisgarh', district: 'Raipur' },
-    '50': { state: 'Telangana', district: 'Hyderabad' },
-    '51': { state: 'Andhra Pradesh', district: 'Tirupati' },
-    '52': { state: 'Andhra Pradesh', district: 'Vijayawada' },
-    '53': { state: 'Andhra Pradesh', district: 'Visakhapatnam' },
-    '56': { state: 'Karnataka', district: 'Bengaluru' },
-    '57': { state: 'Karnataka', district: 'Mysuru' },
-    '58': { state: 'Karnataka', district: 'Hubballi' },
-    '59': { state: 'Karnataka', district: 'Belagavi' },
-    '60': { state: 'Tamil Nadu', district: 'Chennai' },
-    '61': { state: 'Tamil Nadu', district: 'Thanjavur' },
-    '62': { state: 'Tamil Nadu', district: 'Madurai' },
-    '63': { state: 'Tamil Nadu', district: 'Vellore' },
-    '64': { state: 'Tamil Nadu', district: 'Coimbatore' },
-    '67': { state: 'Kerala', district: 'Kozhikode' },
-    '68': { state: 'Kerala', district: 'Ernakulam' },
-    '69': { state: 'Kerala', district: 'Thiruvananthapuram' },
-    '70': { state: 'West Bengal', district: 'Kolkata' },
-    '71': { state: 'West Bengal', district: 'Howrah' },
-    '72': { state: 'West Bengal', district: 'Hooghly' },
-    '73': { state: 'West Bengal', district: 'Kharagpur' },
-    '74': { state: 'West Bengal', district: 'Siliguri' },
-    '75': { state: 'Odisha', district: 'Bhubaneswar' },
-    '76': { state: 'Odisha', district: 'Cuttack' },
-    '77': { state: 'Odisha', district: 'Rourkela' },
-    '78': { state: 'Assam', district: 'Guwahati' },
-    '79': { state: 'Arunachal Pradesh', district: 'Itanagar' },
-    '80': { state: 'Bihar', district: 'Patna' },
-    '81': { state: 'Bihar', district: 'Gaya' },
-    '82': { state: 'Bihar', district: 'Bhagalpur' },
-    '83': { state: 'Jharkhand', district: 'Ranchi' },
-    '84': { state: 'Jharkhand', district: 'Dhanbad' },
-    '85': { state: 'Bihar', district: 'Muzaffarpur' }
+    '11': { state: 'Delhi', district: '' },
+    '12': { state: 'Haryana', district: '' },
+    '13': { state: 'Haryana', district: '' },
+    '14': { state: 'Punjab', district: '' },
+    '15': { state: 'Punjab', district: '' },
+    '16': { state: 'Chandigarh', district: '' },
+    '17': { state: 'Himachal Pradesh', district: '' },
+    '18': { state: 'Jammu and Kashmir', district: '' },
+    '19': { state: 'Jammu and Kashmir', district: '' },
+    '20': { state: 'Uttar Pradesh', district: '' },
+    '21': { state: 'Uttar Pradesh', district: '' },
+    '22': { state: 'Uttar Pradesh', district: '' },
+    '23': { state: 'Uttar Pradesh', district: '' },
+    '24': { state: 'Uttar Pradesh', district: '' },
+    '25': { state: 'Uttar Pradesh', district: '' },
+    '26': { state: 'Uttarakhand', district: '' },
+    '27': { state: 'Uttar Pradesh', district: '' },
+    '28': { state: 'Uttar Pradesh', district: '' },
+    '30': { state: 'Rajasthan', district: '' },
+    '31': { state: 'Rajasthan', district: '' },
+    '32': { state: 'Rajasthan', district: '' },
+    '33': { state: 'Rajasthan', district: '' },
+    '34': { state: 'Rajasthan', district: '' },
+    '36': { state: 'Gujarat', district: '' },
+    '37': { state: 'Gujarat', district: '' },
+    '38': { state: 'Gujarat', district: '' },
+    '39': { state: 'Gujarat', district: '' },
+    '40': { state: 'Maharashtra', district: '' },
+    '41': { state: 'Maharashtra', district: '' },
+    '42': { state: 'Maharashtra', district: '' },
+    '43': { state: 'Maharashtra', district: '' },
+    '44': { state: 'Maharashtra', district: '' },
+    '45': { state: 'Madhya Pradesh', district: '' },
+    '46': { state: 'Madhya Pradesh', district: '' },
+    '47': { state: 'Madhya Pradesh', district: '' },
+    '48': { state: 'Madhya Pradesh', district: '' },
+    '49': { state: 'Chhattisgarh', district: '' },
+    '50': { state: 'Telangana', district: '' },
+    '51': { state: 'Andhra Pradesh', district: '' },
+    '52': { state: 'Andhra Pradesh', district: '' },
+    '53': { state: 'Andhra Pradesh', district: '' },
+    '56': { state: 'Karnataka', district: '' },
+    '57': { state: 'Karnataka', district: '' },
+    '58': { state: 'Karnataka', district: '' },
+    '59': { state: 'Karnataka', district: '' },
+    '60': { state: 'Tamil Nadu', district: '' },
+    '61': { state: 'Tamil Nadu', district: '' },
+    '62': { state: 'Tamil Nadu', district: '' },
+    '63': { state: 'Tamil Nadu', district: '' },
+    '64': { state: 'Tamil Nadu', district: '' },
+    '67': { state: 'Kerala', district: '' },
+    '68': { state: 'Kerala', district: '' },
+    '69': { state: 'Kerala', district: '' },
+    '70': { state: 'West Bengal', district: '' },
+    '71': { state: 'West Bengal', district: '' },
+    '72': { state: 'West Bengal', district: '' },
+    '73': { state: 'West Bengal', district: '' },
+    '74': { state: 'West Bengal', district: '' },
+    '75': { state: 'Odisha', district: '' },
+    '76': { state: 'Odisha', district: '' },
+    '77': { state: 'Odisha', district: '' },
+    '78': { state: 'Assam', district: '' },
+    '79': { state: 'Arunachal Pradesh', district: '' },
+    '80': { state: 'Bihar', district: '' },
+    '81': { state: 'Bihar', district: '' },
+    '82': { state: 'Bihar', district: '' },
+    '83': { state: 'Jharkhand', district: '' },
+    '84': { state: 'Jharkhand', district: '' },
+    '85': { state: 'Bihar', district: '' }
   };
   return map[prefix2] || null;
 }
@@ -394,7 +420,8 @@ async function verifyPincode(pincode) {
           return result;
         } else if (data[0].Status === 'Error') {
           if (instantInfo) {
-            const result = { valid: true, exists: true, pincode: pincode, state: instantInfo.state, district: instantInfo.district, locationString: `${instantInfo.district}, ${instantInfo.state}` };
+            const locStr = instantInfo.district ? `${instantInfo.district}, ${instantInfo.state}` : instantInfo.state;
+            const result = { valid: true, exists: true, pincode: pincode, state: instantInfo.state, district: instantInfo.district, locationString: locStr };
             pincodeCache.set(pincode, result);
             return result;
           }
@@ -427,7 +454,8 @@ async function verifyPincode(pincode) {
       }
     } else if (fallbackRes.status === 404) {
       if (instantInfo) {
-        const result = { valid: true, exists: true, pincode: pincode, state: instantInfo.state, district: instantInfo.district, locationString: `${instantInfo.district}, ${instantInfo.state}` };
+        const locStr = instantInfo.district ? `${instantInfo.district}, ${instantInfo.state}` : instantInfo.state;
+        const result = { valid: true, exists: true, pincode: pincode, state: instantInfo.state, district: instantInfo.district, locationString: locStr };
         pincodeCache.set(pincode, result);
         return result;
       }
@@ -439,7 +467,8 @@ async function verifyPincode(pincode) {
     console.warn('Fallback PIN Code API error:', fallbackErr);
   }
 
-  const fallbackResult = { valid: true, exists: true, pincode: pincode, isUnverifiedFallback: true, state: instantInfo ? instantInfo.state : 'Kerala', district: instantInfo ? instantInfo.district : '', locationString: instantInfo ? `${instantInfo.district}, ${instantInfo.state}` : 'Kerala' };
+  const locStr = instantInfo ? (instantInfo.district ? `${instantInfo.district}, ${instantInfo.state}` : instantInfo.state) : 'Kerala';
+  const fallbackResult = { valid: true, exists: true, pincode: pincode, isUnverifiedFallback: true, state: instantInfo ? instantInfo.state : 'Kerala', district: instantInfo ? instantInfo.district : '', locationString: locStr };
   pincodeCache.set(pincode, fallbackResult);
   return fallbackResult;
 }
@@ -489,7 +518,8 @@ function validateLocationInput(inputEl, errorEl) {
   if (/^\d{6}$/.test(val)) {
     const instant = getStateFromPincodePrefix(val);
     if (instant) {
-      autoFillLocationFields({ pincode: val, state: instant.state, district: instant.district, locationString: `${instant.district}, ${instant.state}` });
+      const locStr = instant.district ? `${instant.district}, ${instant.state}` : instant.state;
+      autoFillLocationFields({ pincode: val, state: instant.state, district: instant.district, locationString: locStr });
     }
     if (pincodeCache.has(val)) {
       const cached = pincodeCache.get(val);
@@ -521,7 +551,8 @@ function validateLocationInput(inputEl, errorEl) {
     } else {
       inputEl.setCustomValidity('');
       if (errorEl) {
-        errorEl.textContent = instant ? `✓ Verified: ${instant.district}, ${instant.state}` : 'Verifying PIN code...';
+        const locStr = instant ? (instant.district ? `${instant.district}, ${instant.state}` : instant.state) : '';
+        errorEl.textContent = instant ? `✓ Verified: ${locStr}` : 'Verifying PIN code...';
         errorEl.style.color = '#12356B';
         errorEl.style.display = 'block';
       }
@@ -1002,8 +1033,175 @@ function showQuote(){
 function showPayment(){const advPct=getAdvancePercent();const balPct=100-advPct;setStage(1);let modal=document.getElementById('payment-preview');if(!modal){modal=document.createElement('dialog');modal.id='payment-preview';modal.className='payment-dialog';modal.setAttribute('aria-labelledby','payment-title');document.body.append(modal);modal.addEventListener('cancel',()=>setStage(0));}modal.innerHTML=`<button class="payment-close" aria-label="Close payment preview" onclick="closePayment()">×</button><span class="demo-pill">PAYMENT · PAYMENT PREVIEW</span><div class="flow-icon">₹</div><h2 id="payment-title">Pay your ${advPct}% advance</h2><p>Amount payable now · quotation summary</p><div class="checkout-amount">${money(advanceAmount())}</div><div class="payment-summary"><span>Total amount</span><b>${money(demoTotal())}</b><span>${advPct}% advance · now</span><b>${money(advanceAmount())}</b><span>${balPct}% balance · at completion</span><b>${money(balanceAmount())}</b><span>Customer</span><b>${safeText(demoCustomer.name)}</b><span>GST registration</span><b>Included free · ₹999 value</b></div><p class="flow-note">Payment is not connected in this preview. In the live version, checkout will collect only the ${advPct}% advance. The remaining ${balPct}% is payable at the end of the incorporation process.</p><button class="flow-action" onclick="previewConfirmation()">Simulate confirmation — demo only</button><button class="flow-back" onclick="showQuote()">Return to quotation</button>`;modal.showModal();}
 function closePayment(){document.getElementById('payment-preview').close();setStage(0);}
 function previewConfirmation(){document.getElementById('payment-preview').close();showHandoff();}
-function showHandoff(status){const advPct=getAdvancePercent();const balPct=100-advPct;setStage(2);const isFailed=status==='failed';const sent=status==='sent';const msgText=sent?'We’ve sent you a WhatsApp message from FinFace — reply to continue your application.':(isFailed?'Your quotation is accepted, but we could not confirm that your WhatsApp message was sent. Please contact us with your quotation number.':'After your '+advPct+'% advance is confirmed, we’ll continue your incorporation on WhatsApp.');flowRoot.innerHTML=`<div class="flow-message"><b>FinBot · Confirmation</b>${msgText}</div><div class="handoff-card"><div class="flow-icon">✓</div><h3>You’re ready for the next step</h3><p>Your application reference, quotation and advance-payment record will carry over to WhatsApp.</p><div class="payment-split"><div><span>${advPct}% advance</span><b>${money(advanceAmount())}</b></div><div><span>${balPct}% due at process completion</span><b>${money(balanceAmount())}</b></div></div><ol><li>Open WhatsApp using the button below.</li><li>Send your prefilled application reference.</li><li>FinBot starts collecting documents and company details.</li></ol><button class="flow-action" onclick="explainHandoff()">Chat with FinBot on WhatsApp ↗</button><p class="flow-note">Clicking the button opens WhatsApp directly with your prefilled details.</p><p id="handoff-status" class="flow-error" role="status"></p></div><button class="flow-back" onclick="showQuote()">Back to quotation</button>`;}
-async function explainHandoff(){const statusEl=document.getElementById('handoff-status');const btn=document.querySelector('.handoff-card button.flow-action');if(btn){btn.disabled=true;btn.textContent='Saving lead & notifying FinBot...';}if(statusEl){statusEl.style.color='#12356b';statusEl.textContent='Saving quotation to database...';}const name=demoCustomer?.name||customerDetails?.name||'Customer';const phone=demoCustomer?.phone||customerDetails?.phone||'';const digits=phone.replace(/\D/g,'');const plan=selectedPackage?selectedPackage.name:'Registration';const type=selectedType||'Company';const quoteNo=currentQuote?.quote_number||('FB-'+Math.floor(100000+Math.random()*900000));const adv=typeof advanceAmount==='function'?money(advanceAmount()):'';const tot=typeof demoTotal==='function'?money(demoTotal()):'';const payload={action:'quotation_submission',quote_number:quoteNo,customer_name:name,phone:digits,company_type:type,selected_plan:plan,advance_amount:adv,total_amount:tot,proposed_director_count:demoCustomer?.directors||customerDetails?.director_count||2,authorized_capital:demoCustomer?.capital||systemSettings.default_authorized_capital||100000,office_location:demoCustomer?.location||customerDetails?.state||'',timestamp:new Date().toISOString()};let dbSaved=false;try{if(typeof SUPABASE_URL!=='undefined'&&SUPABASE_URL&&SUPABASE_ANON_KEY){const dbResp=await fetch(`${SUPABASE_URL}/functions/v1/accept-quotation`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`},body:JSON.stringify({quote_number:quoteNo,payload:payload})});if(dbResp.ok)dbSaved=true;}}catch(e){console.log('Database save notice:',e);}let n8nTriggered=false;try{if(statusEl)statusEl.textContent='Notifying FinBot workflow...';const resp=await fetch(N8N_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(resp.ok){n8nTriggered=true;try{const resData=await resp.json();if(resData.reply||resData.message)console.log('n8n bot reply:',resData.reply||resData.message);}catch(e){}}}catch(e){console.log('n8n webhook notice:',e);}if(btn){btn.disabled=false;btn.textContent=n8nTriggered?'Trigger FinBot Workflow ↗':'Retry FinBot Workflow ↗';}if(statusEl){if(n8nTriggered||dbSaved){statusEl.style.color='#12356b';statusEl.textContent='✓ Quotation accepted & sent to n8n workflow! FinBot will initiate chat directly to WhatsApp number '+digits+'.';}else{statusEl.style.color='#c0392b';statusEl.textContent='⚠️ Workflow notification failed. Click retry to connect with FinBot on WhatsApp.';}}}
+function showHandoff(status){const advPct=getAdvancePercent();const balPct=100-advPct;setStage(2);const isFailed=status==='failed';const sent=status==='sent';const msgText=sent?'We’ve sent you a WhatsApp message from FinFace — reply to continue your application.':(isFailed?'Your quotation is accepted, but we could not confirm that your WhatsApp message was sent. Please contact us with your quotation number.':'After your '+advPct+'% advance is confirmed, we’ll continue your incorporation on WhatsApp.');flowRoot.innerHTML=`<div class="flow-message"><b>FinBot · Confirmation</b>${msgText}</div><div class="handoff-card"><div class="flow-icon">✓</div><h3>You’re ready for the next step</h3><p>Your application reference, quotation and advance-payment record will carry over to WhatsApp.</p><div class="payment-split"><div><span>${advPct}% advance</span><b>${money(advanceAmount())}</b></div><div><span>${balPct}% due at process completion</span><b>${money(balanceAmount())}</b></div></div><ol><li>Open WhatsApp using the button below.</li><li>Send your prefilled application reference.</li><li>FinBot starts collecting documents and company details.</li></ol><button class="flow-action btn-expert-callback" id="btn-request-callback" onclick="requestExpertCallback(this)">Request Expert Call Back</button><div id="callback-status" class="flow-note" style="margin:8px 0; font-weight:500;"></div><button class="flow-action btn-whatsapp-handoff" id="btn-whatsapp-handoff" onclick="explainHandoff()">Chat with FinBot on WhatsApp ↗</button><p class="flow-note">Clicking the button opens WhatsApp directly with your prefilled details.</p><p id="handoff-status" class="flow-error" role="status"></p></div><button class="flow-back" onclick="showQuote()">Back to quotation</button>`;}
+async function requestExpertCallback(btn){
+  const statusEl=document.getElementById('callback-status');
+  if(!btn)btn=document.getElementById('btn-request-callback');
+
+  // Check Business Operational Hours (Mon-Sat 9:00 AM - 6:00 PM IST)
+  const bhCheck = checkBusinessHoursIST();
+  if (!bhCheck.allowed) {
+    if(btn){btn.disabled=false;btn.textContent='Request Expert Call Back';}
+    if(statusEl){
+      statusEl.style.color='#c0392b';
+      statusEl.innerHTML='⚠️ ' + bhCheck.reason + '<br><small style="color:#596273">Please contact us on WhatsApp or try again during operational hours.</small>';
+    }
+    return;
+  }
+
+  if(btn){btn.disabled=true;btn.textContent='Submitting Request...';}
+  if(statusEl){statusEl.style.color='#12356b';statusEl.textContent='Submitting your callback request...';}
+
+  const quoteId=currentQuote?.id;
+  const quoteNumber=currentQuote?.quote_number || ('FB-'+Math.floor(100000+Math.random()*900000));
+  const name=demoCustomer?.name||customerDetails?.name||'Customer';
+  const phone=demoCustomer?.phone||customerDetails?.phone||'';
+  const digits=phone.replace(/\D/g,'');
+  const serviceRequested = selectedType ? (selectedType + ' Incorporation') : 'Private Limited Company Incorporation';
+  const custState = demoCustomer?.state || customerDetails?.state || (document.getElementById('qbState'))?.value || '';
+  const custPincode = demoCustomer?.pincode || customerDetails?.pincode || (document.getElementById('officeLocation'))?.value || '';
+
+  let success=false;
+  let errorMsg='';
+
+  // Call Supabase Edge Function to dispatch WAAU WhatsApp Notification directly
+  try{
+    if(typeof SUPABASE_URL!=='undefined'&&SUPABASE_URL&&SUPABASE_ANON_KEY){
+      const resp=await fetch(`${SUPABASE_URL}/functions/v1/request-callback`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`},
+        body:JSON.stringify({
+          quotation_id:quoteId,
+          quote_number:quoteNumber,
+          customer_name:name,
+          phone:digits,
+          service_requested:serviceRequested,
+          state:custState,
+          pincode:custPincode
+        })
+      });
+      const data=await resp.json().catch(()=>({}));
+      if(resp.ok && data.success){
+        success=true;
+      }else if(resp.status===409||data?.duplicate){
+        success=true;
+      }else{
+        errorMsg=data.error||'Unable to submit callback request. Please try again later.';
+      }
+    } else {
+      errorMsg='Supabase client not initialized.';
+    }
+  }catch(e){
+    console.error('Edge function request error:',e);
+    errorMsg='Unable to submit callback request. Please try again later.';
+  }
+
+  if(success){
+    if(btn){btn.disabled=true;btn.textContent='✓ Callback Request Submitted';}
+    if(statusEl){
+      statusEl.style.color='#059669';
+      statusEl.innerHTML='✓ Callback Request Submitted<br><small style="color:#596273">Our incorporation specialist will contact you shortly.</small>';
+    }
+  }else{
+    if(btn){btn.disabled=false;btn.textContent='Request Expert Call Back';}
+    if(statusEl){
+      statusEl.style.color='#c0392b';
+      statusEl.textContent=errorMsg||'Unable to submit callback request. Please try again later.';
+    }
+  }
+}
+async function explainHandoff(){
+  const statusEl=document.getElementById('handoff-status');
+  const btn=document.querySelector('.handoff-card button.btn-whatsapp-handoff')||document.getElementById('btn-whatsapp-handoff')||document.querySelector('.handoff-card button.flow-action');
+  if(btn){btn.disabled=true;btn.textContent='Requesting...';}
+  if(statusEl){statusEl.style.color='#12356b';statusEl.textContent='Saving quotation to database...';}
+
+  if (typeof loadSystemSettings === 'function') {
+    await loadSystemSettings().catch(() => {});
+  }
+
+  const name=demoCustomer?.name||customerDetails?.name||document.getElementById('qbName')?.value||document.getElementById('dockName')?.value||'Customer';
+  const phone=demoCustomer?.phone||customerDetails?.phone||document.getElementById('qbPhone')?.value||document.getElementById('dockPhone')?.value||'';
+  const digits=phone.replace(/\D/g,'');
+  const email=demoCustomer?.email||customerDetails?.email||document.getElementById('qbEmail')?.value||document.getElementById('dockEmail')?.value||'';
+  const plan=selectedPackage?selectedPackage.name:'Registration';
+  const type=selectedType||'Company';
+  const quoteNo=currentQuote?.quote_number||('FB-'+Math.floor(100000+Math.random()*900000));
+  const adv=typeof advanceAmount==='function'?money(advanceAmount()):'';
+  const tot=typeof demoTotal==='function'?money(demoTotal()):'';
+  const pinCode=demoCustomer?.pincode||customerDetails?.pincode||(document.getElementById('officeLocation')||document.getElementById('qbPincode'))?.value?.trim()||'';
+
+  const rawSupportWa = String(systemSettings.support_whatsapp || systemSettings.support_phone || '8129056276').replace(/\D/g, '');
+  const supportWhatsappDigits = rawSupportWa.length === 10 ? ('91' + rawSupportWa) : (rawSupportWa || '918129056276');
+  const supportEmailAddr = String(systemSettings.support_email || 'abilashom6@gmail.com').trim();
+
+  const payload={
+    action:'quotation_submission',
+    quote_number:quoteNo,
+    phone: supportWhatsappDigits,
+    email: supportEmailAddr,
+    customer_name: name,
+    customer_phone: digits,
+    customer_email: email,
+    company_type: type,
+    selected_plan: plan,
+    advance_amount: adv,
+    total_amount: tot,
+    proposed_director_count: demoCustomer?.directors||customerDetails?.director_count||2,
+    authorized_capital: demoCustomer?.capital||systemSettings.default_authorized_capital||100000,
+    office_location: demoCustomer?.location||customerDetails?.state||'',
+    pincode: pinCode,
+    support_phone: systemSettings.support_phone || '8129056276',
+    support_whatsapp: systemSettings.support_whatsapp || '8129056276',
+    support_email: systemSettings.support_email || 'abilashom6@gmail.com',
+    message: `You have a new quotation request from the website!\n\nCustomer: ${name}\nPhone: +${digits}\nEmail: ${email || 'N/A'}\nQuote #: ${quoteNo}\nCompany Type: ${type}\nPlan: ${plan}\nAdvance: ${adv}\nTotal: ${tot}${pinCode ? `\nPIN Code: ${pinCode}` : ''}`,
+    timestamp: new Date().toISOString()
+  };
+
+  let dbSaved=false;
+  try{
+    if(typeof SUPABASE_URL!=='undefined'&&SUPABASE_URL&&SUPABASE_ANON_KEY){
+      const dbResp=await fetch(`${SUPABASE_URL}/functions/v1/accept-quotation`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`},
+        body:JSON.stringify({quote_number:quoteNo,payload:payload})
+      });
+      if(dbResp.ok)dbSaved=true;
+    }
+  }catch(e){console.log('Database save notice:',e);}
+
+  let n8nTriggered=false;
+  try{
+    if(statusEl)statusEl.textContent='Notifying FinBot workflow...';
+    const resp=await fetch(N8N_WEBHOOK_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    if(resp.ok){
+      n8nTriggered=true;
+      try{
+        const resData=await resp.json();
+        if(resData.reply||resData.message)console.log('n8n bot reply:',resData.reply||resData.message);
+      }catch(e){}
+    }
+  }catch(e){console.log('n8n webhook notice:',e);}
+
+  if(btn){
+    btn.disabled=false;
+    btn.textContent='Chat with FinBot on WhatsApp ↗';
+  }
+
+  if(statusEl){
+    if(n8nTriggered||dbSaved){
+      statusEl.style.color='#12356b';
+      statusEl.textContent='✓ You have a request from the website! Notification sent to Support WhatsApp (+' + supportWhatsappDigits + ') and Support Email (' + supportEmailAddr + ').';
+    }else{
+      statusEl.style.color='#c0392b';
+      statusEl.textContent='⚠️ Workflow notification failed. Click retry to connect with FinBot on WhatsApp.';
+    }
+  }
+}
 if (typeof document !== 'undefined' && document.getElementById) {
   loadSystemSettings().then(()=>{ updateContactModalUI(); updateAdvancePercentUI(); renderRegistrationPlans('private'); fetchDynamicPlans(); fetchDynamicFeeItems(); resetFlow(); });
 }

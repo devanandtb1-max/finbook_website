@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 
-export type View = 'home' | 'quotations' | 'pricing' | 'settings';
+export type View = 'home' | 'quotations' | 'callbacks' | 'pricing' | 'settings';
 
 interface NavbarProps {
   view: View;
@@ -48,6 +48,8 @@ export function Navbar({ view, login, menu, setMenu, navigate }: NavbarProps) {
       <button onClick={() => navigate('home')} aria-current={view === 'home' ? 'page' : undefined}>Home</button>
       <span aria-hidden="true">, </span>
       <button onClick={() => navigate('quotations')} aria-current={view === 'quotations' ? 'page' : undefined}>Quotations</button>
+      <span aria-hidden="true">, </span>
+      <button onClick={() => navigate('callbacks')} aria-current={view === 'callbacks' ? 'page' : undefined}>Callbacks</button>
       <span aria-hidden="true">, </span>
       <button onClick={() => navigate('pricing')} aria-current={view === 'pricing' ? 'page' : undefined}>Pricing</button>
       <span aria-hidden="true">, </span>

@@ -76,6 +76,7 @@ export function HeroSection({ login, navigate }: HeroSectionProps) {
           ) : (
             <>
               <button className="pill" onClick={() => navigate('quotations')}>Review quotations</button>
+              <button className="pill" onClick={() => navigate('callbacks')}>Callback Requests</button>
               <button className="pill" onClick={() => navigate('pricing')}>Manage pricing & fees</button>
               <button className="pill" onClick={() => navigate('settings')}>Contact & Support settings</button>
               <a className="pill" href="../index.html" target="_blank" rel="noopener noreferrer">Open customer website ↗</a>
