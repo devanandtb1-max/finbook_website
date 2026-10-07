@@ -1131,9 +1131,9 @@ async function explainHandoff(){
   const tot=typeof demoTotal==='function'?money(demoTotal()):'';
   const pinCode=demoCustomer?.pincode||customerDetails?.pincode||(document.getElementById('officeLocation')||document.getElementById('qbPincode'))?.value?.trim()||'';
 
-  const rawSupportWa = String(systemSettings.support_whatsapp || systemSettings.support_phone || '8129056276').replace(/\D/g, '');
-  const supportWhatsappDigits = rawSupportWa.length === 10 ? ('91' + rawSupportWa) : (rawSupportWa || '918129056276');
-  const supportEmailAddr = String(systemSettings.support_email || 'abilashom6@gmail.com').trim();
+  const rawSupportWa = String(systemSettings.support_whatsapp || systemSettings.support_phone || '').replace(/\D/g, '');
+  const supportWhatsappDigits = rawSupportWa.length === 10 ? ('91' + rawSupportWa) : rawSupportWa;
+  const supportEmailAddr = String(systemSettings.support_email || '').trim();
 
   const payload={
     action:'quotation_submission',
@@ -1151,9 +1151,9 @@ async function explainHandoff(){
     authorized_capital: demoCustomer?.capital||systemSettings.default_authorized_capital||100000,
     office_location: demoCustomer?.location||customerDetails?.state||'',
     pincode: pinCode,
-    support_phone: systemSettings.support_phone || '8129056276',
-    support_whatsapp: systemSettings.support_whatsapp || '8129056276',
-    support_email: systemSettings.support_email || 'abilashom6@gmail.com',
+    support_phone: systemSettings.support_phone || '',
+    support_whatsapp: systemSettings.support_whatsapp || '',
+    support_email: systemSettings.support_email || '',
     message: `You have a new quotation request from the website!\n\nCustomer: ${name}\nPhone: +${digits}\nEmail: ${email || 'N/A'}\nQuote #: ${quoteNo}\nCompany Type: ${type}\nPlan: ${plan}\nAdvance: ${adv}\nTotal: ${tot}${pinCode ? `\nPIN Code: ${pinCode}` : ''}`,
     timestamp: new Date().toISOString()
   };

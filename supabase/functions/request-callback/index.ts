@@ -96,7 +96,7 @@ serve(async (req: Request) => {
     }
 
     if (!rawSupportPhone) {
-      rawSupportPhone = Deno.env.get('SUPPORT_WHATSAPP') || Deno.env.get('SUPPORT_PHONE') || '918129056276';
+      rawSupportPhone = Deno.env.get('SUPPORT_WHATSAPP') || Deno.env.get('SUPPORT_PHONE') || '';
     }
 
     let supportPhone = rawSupportPhone.replace(/\D/g, '');
@@ -104,7 +104,11 @@ serve(async (req: Request) => {
       supportPhone = '91' + supportPhone;
     }
     if (!supportPhone) {
-      supportPhone = '918129056276';
+      console.error("Support WhatsApp phone number is not configured in settings table or environment variables.");
+      return new Response(
+        JSON.stringify({ error: 'Support WhatsApp phone number is not configured.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // 3b. Read support_email dynamically from settings table FIRST (always prioritize DB over env)
