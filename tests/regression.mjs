@@ -16,7 +16,7 @@ async function edge(name, { results = [], rpcResult = {}, webhook = { success: t
   const writes = [], payloads = [];
   const source = readFileSync(`supabase/functions/${name}/index.ts`, 'utf8')
     .replace(/^import .*;\r?\n/gm, '')
-    .replace(/:\s*(Request|Response|string|number|boolean|any|unknown|Record<[^>]+>|\{\s*\[key:\s*string\]:\s*any\s*\})(\s*\|\s*null)?/g, '');
+    .replace(/:\s*(Request|Response|string|number|boolean|any|unknown|Record<[^>]+>|\{\s*\[key:\s*string\]:\s*any\s*\})(\s*\[\s*\])?(\s*\|\s*null)?/g, '');
   const client = { rpc: async () => rpcResult, from: () => chain(results[calls++] || {}, (method, args) => { if (['insert', 'update'].includes(method)) writes.push(args[0]); }) };
   vm.runInNewContext(source, { serve: fn => handler = fn, createClient: () => client, Deno: { env: { get: key => env[key] } }, Request, Response, crypto, AbortSignal, console: { log() {}, error() {} }, fetch: async (_url, options) => { sends++; payloads.push(JSON.parse(options.body)); return Response.json(webhook); } });
   return { call: body => handler(new Request('http://localhost', { method: 'POST', body: JSON.stringify(body) })), get sends() { return sends; }, writes, payloads };
