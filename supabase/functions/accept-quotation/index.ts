@@ -85,6 +85,7 @@ serve(async (req: Request) => {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (n8nSecret) headers['x-finbook-secret'] = n8nSecret;
 
+        const customerName = String(quote.customer_name || quote.name || body?.customer_name || body?.payload?.customer_name || '').trim();
         const pincode = quote.pincode || (quote.quote && quote.quote.pincode) || null;
         const n8nResponse = await fetch(n8nUrl, {
           method: 'POST',
@@ -92,7 +93,8 @@ serve(async (req: Request) => {
           headers,
           body: JSON.stringify({
             phone: quote.phone,
-            customer_name: quote.name,
+            customer_name: customerName,
+            name: customerName,
             company_type: quote.company_type || (quote.quote && quote.quote.company_type),
             proposed_director_count: quote.proposed_director_count,
             company_state: quote.company_state,

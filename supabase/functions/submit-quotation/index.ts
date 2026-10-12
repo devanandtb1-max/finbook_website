@@ -118,7 +118,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, ...quoteResult, authorized_capital: authorizedCapital, quote_number: savedQuote.quote_number, valid_until }),
+      JSON.stringify({ success: true, customer_name: name.trim(), ...quoteResult, authorized_capital: authorizedCapital, quote_number: savedQuote.quote_number, valid_until }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

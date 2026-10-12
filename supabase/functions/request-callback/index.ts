@@ -363,7 +363,9 @@ serve(async (req: Request) => {
             subject: emailSubject,
             html: emailHtmlBody,
             customer_name: finalCustomerName,
+            name: finalCustomerName,
             customer_phone: finalPhone,
+            phone: finalPhone,
             service_requested: finalServiceRequested,
             quote_number: finalQuoteNumber
           })

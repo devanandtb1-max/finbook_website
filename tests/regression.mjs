@@ -52,7 +52,7 @@ for (const [label, row, rate, claim, expected, sends] of [
   const fn = await edge('accept-quotation', { results: [{ data: row }, rate, claim, {}], env });
   check((await fn.call({ quote_number: 'FB-test' })).status === expected, label);
   check(fn.sends === sends, `${label}: webhook count`);
-  if (sends) check(fn.payloads[0].company_type === 'Private Limited Company' && fn.payloads[0].proposed_director_count === 2 && fn.payloads[0].company_state === 'Kerala' && fn.payloads[0].pincode === '695001', 'Webhook uses persisted schema fields, pincode, and frozen company label');
+  if (sends) check(fn.payloads[0].customer_name === quote.customer_name && fn.payloads[0].company_type === 'Private Limited Company' && fn.payloads[0].proposed_director_count === 2 && fn.payloads[0].company_state === 'Kerala' && fn.payloads[0].pincode === '695001', 'Webhook uses persisted schema fields, customer_name, pincode, and frozen company label');
 }
 for (const webhook of [{ whatsapp_sent: false }, {}, { success: false, whatsapp_sent: true }]) {
   const fn = await edge('accept-quotation', { results: [{ data: quote }, { data: [] }, { data: { id: 'id' } }, {}], env, webhook });
